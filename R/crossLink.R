@@ -37,8 +37,8 @@ bamIterator <- function(bf) {
 message("Importing VCF file... ")
 ptm <- proc.time()
 
-#suppressWarnings( hap.gr <- vcf2rangesWH(vcfFile = vcfFile, genotypeField = 1, filterUnphased = T, minimalBlock = NULL) )
-suppressWarnings( hap.gr <- vcf2rangesSS(vcfFile = vcfFile, genotypeField = 1) )
+suppressWarnings( hap.gr <- vcf2rangesWH(vcfFile = vcfFile, genotypeField = 1, filterUnphased = TRUE, minimalBlock = NULL) )
+#suppressWarnings( hap.gr <- vcf2rangesSS(vcfFile = vcfFile, genotypeField = 1) )
 
 #filter out missing alleles and homozygous positions
 mask <- hap.gr$hap1.base == "N" | hap.gr$hap2.base == "N" | hap.gr$hap1.base == hap.gr$hap2.base
@@ -46,17 +46,12 @@ hap.gr <- hap.gr[!mask]
 
 #filter low quality (score < 1; phredQ > 0.99)
 #mask <- hap.gr$score1 >= 1 & hap.gr$score2 >= 1 & hap.gr$phredQ1 > 0.99 & hap.gr$phredQ2 > 0.99
-mask <- hap.gr$phredQ1 >= 0.99 & hap.gr$phredQ2 >= 0.99
-hap.gr <- hap.gr[mask]
+#mask <- hap.gr$phredQ1 >= 0.99 & hap.gr$phredQ2 >= 0.99
+#hap.gr <- hap.gr[mask]
 
 #blacklist regions with mixed directional reads (inversion) as well as segmental duplications
-if (!is.null(blacklist)) {
-  filt.regions <- read.table(blacklist, header=T)
-  filt.regions <- GenomicRanges::GRanges(seqnames=filt.regions$seqnames, ranges=IRanges(start=filt.regions$start, end=filt.regions$end))
-  suppressWarnings( filt.hits <- GenomicRanges::findOverlaps(hap.gr, filt.regions) )
-  if (length(filt.hits)>0) {
-    hap.gr <- hap.gr[-queryHits(filt.hits)]
-  }  
+if (!is.null(blacklist) & class(blacklist)[1] == "GRanges") {
+  hap.gr <- IRanges::subsetByOverlaps(hap.gr, blacklist, invert = TRUE)
 }
 
 time <- proc.time() - ptm
